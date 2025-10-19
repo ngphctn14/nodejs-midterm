@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres
+    container_name: postgres-midterm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: feedback_hub
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: node-backend
+    restart: unless-stopped
+    depends_on:
+      - db
+    env_file:
+      ./backend/.env.docker
+    ports:
+      - "5000:5000"
+
+volumes:
+  db_data:
