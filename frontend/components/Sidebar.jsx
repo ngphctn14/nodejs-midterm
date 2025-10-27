@@ -5,8 +5,8 @@ const Sidebar = () => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const menuItems = [
-    { href: '/', icon: <LayoutDashboard className="w-5 h-5" />, text: 'Dashboard', hasSubnav: true },
-    { href: '/feedbacks', icon: <MessageSquare className="w-5 h-5" />, text: 'Feedbacks management', hasSubnav: true },
+    { href: '/admin', icon: <LayoutDashboard className="w-5 h-5" />, text: 'Dashboard', hasSubnav: true },
+    { href: '/admin/feedbacks', icon: <MessageSquare className="w-5 h-5" />, text: 'Feedbacks management', hasSubnav: true },
   ];
 
   return (

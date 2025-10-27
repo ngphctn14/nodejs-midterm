@@ -41,4 +41,16 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await prisma.feedback.delete({
+      where: {id: Number(id)}
+    });
+    res.json(deleted);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete feedback" });
+  }
+});
+
 export default router;
