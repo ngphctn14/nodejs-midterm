@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { Star, Edit, Trash2, X, Check } from 'lucide-react';
+import { Edit, Trash2, X, Check } from 'lucide-react';
 
 const FeedbackTable = ({ feedbacks = [], onEdit, onDelete }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [loadingAction, setLoadingAction] = useState(false);
 
   const handleEdit = (feedback) => {
     setSelectedFeedback(feedback);
@@ -14,7 +15,7 @@ const FeedbackTable = ({ feedbacks = [], onEdit, onDelete }) => {
       name: feedback.name,
       email: feedback.email,
       message: feedback.message,
-      rating: feedback.rating,
+      category: feedback.category,
       status: feedback.status,
     });
     setIsEditModalOpen(true);
@@ -25,33 +26,57 @@ const FeedbackTable = ({ feedbacks = [], onEdit, onDelete }) => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-    onEdit({ ...selectedFeedback, ...editForm });
-    setIsEditModalOpen(false);
-    setSelectedFeedback(null);
+    setLoadingAction(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/feedback/${selectedFeedback.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+
+      if (!res.ok) throw new Error('Cập nhật thất bại');
+      const updatedFeedback = await res.json();
+
+      onEdit(updatedFeedback);
+      setIsEditModalOpen(false);
+      setSelectedFeedback(null);
+    } catch (error) {
+      console.error('Lỗi khi cập nhật feedback:', error);
+      alert('Không thể cập nhật feedback.');
+    } finally {
+      setLoadingAction(false);
+    }
   };
 
-  const confirmDelete = () => {
-    onDelete(selectedFeedback.id);
-    setIsDeleteModalOpen(false);
-    setSelectedFeedback(null);
+  const confirmDelete = async () => {
+    setLoadingAction(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/feedback/${selectedFeedback.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error('Xóa thất bại');
+      onDelete(selectedFeedback.id);
+      setIsDeleteModalOpen(false);
+      setSelectedFeedback(null);
+    } catch (error) {
+      console.error('Lỗi khi xóa feedback:', error);
+      alert('Không thể xóa feedback.');
+    } finally {
+      setLoadingAction(false);
+    }
   };
 
-  const renderStars = (rating) => {
-    return (
-      <div className="flex">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            size={16}
-            className={`${
-              star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
-            }`}
-          />
-        ))}
-      </div>
-    );
+  // Optional: map category slugs to readable Vietnamese labels
+  const categoryLabels = {
+    'general-feedback': 'Phản hồi chung',
+    'bug-report': 'Báo lỗi',
+    'feature-request': 'Yêu cầu tính năng',
+    other: 'Khác',
   };
 
   return (
@@ -67,10 +92,10 @@ const FeedbackTable = ({ feedbacks = [], onEdit, onDelete }) => {
                 Email
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Nội dung
+                Danh mục
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Đánh giá
+                Nội dung
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Trạng thái
@@ -92,18 +117,18 @@ const FeedbackTable = ({ feedbacks = [], onEdit, onDelete }) => {
               </tr>
             ) : (
               feedbacks.map((feedback) => (
-                <tr key={feedback.id} className="hover:bg-gray-50">
+                <tr key={feedback.id || feedback._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {feedback.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {feedback.email}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {categoryLabels[feedback.category] || feedback.category}
+                  </td>
                   <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                     {feedback.message}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {renderStars(feedback.rating)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -161,65 +186,54 @@ const FeedbackTable = ({ feedbacks = [], onEdit, onDelete }) => {
             </div>
             <form onSubmit={handleEditSubmit}>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tên
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tên</label>
                 <input
                   type="text"
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
                   required
                 />
               </div>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input
                   type="email"
                   value={editForm.email}
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
                   required
                 />
               </div>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nội dung
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
+                <select
+                  value={editForm.category}
+                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="general-feedback">Phản hồi chung</option>
+                  <option value="bug-report">Báo lỗi</option>
+                  <option value="feature-request">Yêu cầu tính năng</option>
+                  <option value="other">Khác</option>
+                </select>
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung</label>
                 <textarea
                   value={editForm.message}
                   onChange={(e) => setEditForm({ ...editForm, message: e.target.value })}
                   rows="4"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Đánh giá
-                </label>
-                <select
-                  value={editForm.rating}
-                  onChange={(e) => setEditForm({ ...editForm, rating: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {[1, 2, 3, 4, 5].map((num) => (
-                    <option key={num} value={num}>
-                      {num} sao
-                    </option>
-                  ))}
-                </select>
-              </div>
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Trạng thái
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="pending">Chờ duyệt</option>
                   <option value="approved">Đã duyệt</option>
@@ -236,10 +250,11 @@ const FeedbackTable = ({ feedbacks = [], onEdit, onDelete }) => {
                 </button>
                 <button
                   type="submit"
+                  disabled={loadingAction}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
                 >
                   <Check size={16} className="mr-1" />
-                  Cập nhật
+                  {loadingAction ? 'Đang cập nhật...' : 'Cập nhật'}
                 </button>
               </div>
             </form>
@@ -267,9 +282,10 @@ const FeedbackTable = ({ feedbacks = [], onEdit, onDelete }) => {
               </button>
               <button
                 onClick={confirmDelete}
+                disabled={loadingAction}
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
               >
-                Xóa
+                {loadingAction ? 'Đang xóa...' : 'Xóa'}
               </button>
             </div>
           </div>
