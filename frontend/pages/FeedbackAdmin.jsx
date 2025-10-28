@@ -6,7 +6,6 @@ const AdminFeedbackPage = () => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Fetch feedback data from API
   useEffect(() => {
     const fetchFeedbacks = async () => {
       try {
