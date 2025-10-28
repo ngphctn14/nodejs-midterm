@@ -12,16 +12,56 @@ services:
     volumes:
       - db_data:/var/lib/postgresql
 
-  backend:
+  seed:
     build: ./backend
-    container_name: node-backend
-    restart: unless-stopped
     depends_on:
       - db
     env_file:
       ./backend/.env.docker
+    command: sh -c "npx prisma db push && npm run seed"
+  
+  redis:
+    image: redis:latest
+    restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  backend1:
+    build: ./backend
+    container_name: node-backend-1
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - ./backend/.env.docker
+    expose:
+      - "5000"
+
+  backend2:
+    build: ./backend
+    container_name: node-backend-2
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - ./backend/.env.docker
+    expose:
+      - "5000"
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx-loadbalancer
+    depends_on:
+      - backend1
+      - backend2
+    ports:
+      - "5000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
 
   frontend:
     build: ./frontend
@@ -30,7 +70,9 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      - backend
+      - backend1
+      - backend2
 
 volumes:
   db_data:
+  redis_data:
