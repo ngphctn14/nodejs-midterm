@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres
+    image: postgres:15
     container_name: postgres-midterm
     restart: unless-stopped
     environment:
@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql
+      - db_data:/var/lib/postgresql/data
 
   seed:
     build: ./backend
@@ -28,36 +28,24 @@ services:
     volumes:
       - redis_data:/data
 
-  backend1:
+  backend:
     build: ./backend
-    container_name: node-backend-1
     restart: unless-stopped
     depends_on:
       - db
       - redis
-    env_file:
-      - ./backend/.env.docker
     expose:
       - "5000"
-
-  backend2:
-    build: ./backend
-    container_name: node-backend-2
-    restart: unless-stopped
-    depends_on:
-      - db
-      - redis
     env_file:
       - ./backend/.env.docker
-    expose:
-      - "5000"
+    deploy:
+      replicas: 3
 
   nginx:
     image: nginx:latest
     container_name: nginx-loadbalancer
     depends_on:
-      - backend1
-      - backend2
+      - backend
     ports:
       - "5000:80"
     volumes:
@@ -70,8 +58,7 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      - backend1
-      - backend2
+      - backend
 
 volumes:
   db_data:
