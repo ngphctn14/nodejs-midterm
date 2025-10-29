@@ -19,20 +19,21 @@ const DEFAULT_EXPIRATION = 60;
 const clearFeedbackCache = async () => {
   if (!redisClient.isReady) return;
   try {
-    let cursor = 0;
+    let cursor = "0";
     do {
       const { keys, cursor: nextCursor } = await redisClient.scan(cursor, {
         MATCH: "feedback:*",
         COUNT: 100,
       });
-      cursor = Number(nextCursor);
-      if (keys.length > 0) await redisClient.del(keys);
-    } while (cursor !== 0);
+      if (keys.length > 0) await redisClient.del(...keys);
+      cursor = nextCursor;
+    } while (cursor !== "0");
     console.log("All feedback caches invalidated.");
   } catch (err) {
     console.error("Error invalidating cache:", err);
   }
 };
+
 
 const router = express.Router();
 
